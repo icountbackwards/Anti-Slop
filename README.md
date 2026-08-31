@@ -55,3 +55,15 @@ uvicorn server:app --reload --port 8080
 .venv\Scripts\activate
 python main.py
 ```
+
+### Run from Cloud
+
+```powershell
+gcloud.cmd auth login
+gcloud.cmd config set project YOUR_PROJECT_ID
+gcloud.cmd services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+$env:GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+gcloud.cmd run deploy antislop-agent --source . --region asia-east1 --allow-unauthenticated --set-env-vars "GEMINI_API_KEY=$env:GEMINI_API_KEY"
+$env:ANTISLOP_API_URL="YOUR_CLOUD_RUN_URL"
+.\.venv\Scripts\python.exe main.py
+```
