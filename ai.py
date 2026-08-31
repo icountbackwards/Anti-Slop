@@ -1,21 +1,18 @@
+
 from enum import Enum
 
 import os
-
-from google import genai
+import requests
 
 from pydantic import BaseModel
-
 from typing import Literal
 
-from pathlib import Path
 
 # ============================================================
 # STUDY SESSION SCHEMAS
 # ============================================================
 
 class StudyWidget(BaseModel):
-
     type: Literal[
         "text",
         "latex",
@@ -46,7 +43,6 @@ class StudyWidget(BaseModel):
 
 
 class StudyResponse(BaseModel):
-
     widgets: list[StudyWidget]
 
     evaluation: str | None = None
@@ -59,9 +55,7 @@ class StudyResponse(BaseModel):
 # ============================================================
 
 class AIMode(Enum):
-
     FREE = "free"
-
     PAID = "paid"
 
 
@@ -70,16 +64,12 @@ class AIMode(Enum):
 # ============================================================
 
 class AIResource(BaseModel):
-
     name: str
-
     url: str
 
 
 class SubjectPlan(BaseModel):
-
     topics: list[str]
-
     resources: list[AIResource]
 
 
@@ -93,61 +83,16 @@ class AI:
         self,
         mode=AIMode.FREE
     ):
-
         self.mode = mode
 
-        # Load prompts
-        prompt_dir = Path(__file__).parent / "prompts"
-
-        self.study_agent_prompt = (
-            prompt_dir / "study_agent_prompt.txt"
-        ).read_text(encoding="utf-8")
-
-        self.subject_planner_prompt = (
-            prompt_dir / "subject_planner_prompt.txt"
-        ).read_text(encoding="utf-8")
-
-
         # ====================================================
-        # FREE CLIENT
+        # ANTISLOP AGENT API
         # ====================================================
 
-        free_key = os.getenv(
-            "GEMINI_FREE_API_KEY"
-        )
-
-        if not free_key:
-
-            raise RuntimeError(
-                "GEMINI_FREE_API_KEY is not set."
-            )
-
-
-        self.free_client = genai.Client(
-            api_key=free_key
-        )
-
-
-        # ====================================================
-        # PAID CLIENT
-        # ====================================================
-
-        paid_key = os.getenv(
-            "GEMINI_PAID_API_KEY"
-        )
-
-
-        if paid_key:
-
-            self.paid_client = (
-                genai.Client(
-                    api_key=paid_key
-                )
-            )
-
-        else:
-
-            self.paid_client = None
+        self.api_url = os.getenv(
+            "ANTISLOP_API_URL",
+            "http://localhost:8080"
+        ).rstrip("/")
 
 
     # ========================================================
@@ -158,32 +103,14 @@ class AI:
         self,
         mode
     ):
-
         self.mode = mode
 
 
-    def _getClientAndModel(self):
-
+    def _getModeString(self):
         if self.mode == AIMode.PAID:
+            return "paid"
 
-            if self.paid_client is None:
-
-                raise RuntimeError(
-                    "Paid AI mode selected, but "
-                    "GEMINI_PAID_API_KEY is not set."
-                )
-
-
-            return (
-                self.paid_client,
-                "gemini-3.5-flash"
-            )
-
-
-        return (
-            self.free_client,
-            "gemini-3.5-flash-lite"
-        )
+        return "free"
 
 
     # ========================================================
@@ -195,35 +122,21 @@ class AI:
         name,
         description
     ):
-
-        client, model = (
-            self._getClientAndModel()
+        response = requests.post(
+            f"{self.api_url}/subject-plan",
+            json={
+                "name": name,
+                "description": description,
+                "mode": self._getModeString()
+            },
+            timeout=120
         )
 
+        response.raise_for_status()
 
-        prompt = self.subject_planner_prompt.format(
-            subject_name=name,
-            description=description
+        return SubjectPlan.model_validate(
+            response.json()
         )
-
-        response = (
-            client.models.generate_content(
-                model=model,
-
-                contents=prompt,
-
-                config={
-                    "response_mime_type":
-                        "application/json",
-
-                    "response_schema":
-                        SubjectPlan
-                }
-            )
-        )
-
-
-        return response.parsed
 
 
     # ========================================================
@@ -239,33 +152,26 @@ class AI:
         user_inputs=None,
         action=None
     ):
-
-        client, model = self._getClientAndModel()
-
         if user_inputs is None:
             user_inputs = {}
 
-        prompt = self.study_agent_prompt.format(
-            subject_name=subject_name,
-            current_topic=current_topic,
-            resources=resources,
-            evaluation=evaluation,
-            user_inputs=user_inputs,
-            action=action
+        response = requests.post(
+            f"{self.api_url}/study-agent",
+            json={
+                "subject_name": subject_name,
+                "current_topic": current_topic,
+                "resources": resources,
+                "evaluation": evaluation,
+                "user_inputs": user_inputs,
+                "action": action,
+                "mode": self._getModeString()
+            },
+            timeout=120
         )
 
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": StudyResponse
-            }
+        response.raise_for_status()
+
+        return StudyResponse.model_validate(
+            response.json()
         )
 
-        if response.parsed is None:
-            raise RuntimeError(
-                "Gemini returned no parsed StudyResponse."
-            )
-
-        return response.parsed

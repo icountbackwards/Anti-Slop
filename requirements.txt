@@ -1,3 +1,6 @@
 PySide6
-openai
+google-genai
 pydantic
+fastapi
+uvicorn[standard]
+requests
