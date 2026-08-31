@@ -28,6 +28,9 @@ python main.py
 
 ### Run from Cloud
 
+The same FastAPI backend can be deployed to Google Cloud Run. Set `ANTISLOP_API_URL` to the generated Cloud Run service URL to run the desktop client against the cloud-hosted agent.
+
+
 ```powershell
 gcloud.cmd auth login
 gcloud.cmd config set project YOUR_PROJECT_ID
