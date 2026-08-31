@@ -8,36 +8,6 @@ Built for the **All Things Agentic Hackathon**.
 
 ![Antislop Architecture](docs/architecture.png)
 
-```text
-PySide6 / QML Desktop App
-        │
-        ├── SQLite
-        │   └── Learner state & progress
-        │
-        │ HTTPS / JSON
-        ▼
-Google Cloud Run
-        │
-        └── FastAPI Agent Backend
-                │
-                ├── Subject Planner
-                └── Adaptive Study Agent
-                        │
-                        ▼
-                Google GenAI SDK
-                        │
-                        ▼
-                    Gemini 3.5
-```
-
-Antislop uses **Gemini 3.5** through the **Google GenAI SDK**. The agent backend is designed to run on **Google Cloud Run**, while learner state is stored locally with SQLite.
-
-The core learning loop is:
-
-```text
-Plan → Teach → Assess → Persist → Adapt
-```
-
 ## How to build
 
 ```powershell
