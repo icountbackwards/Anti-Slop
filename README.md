@@ -11,7 +11,7 @@ Built for the **All Things Agentic Hackathon**.
 ## How to build
 
 ```powershell
-git clone https://github.com/icountbackwards/Antislop.git
+git clone https://github.com/icountbackwards/Anti-slop.git
 cd Antislop
 
 python -m venv .venv
